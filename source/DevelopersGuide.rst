@@ -11,12 +11,13 @@ You can import this project to your own Android Studio project via Maven (jCente
 
 .. code:: java
 
-    compile 'fi.vtt.nubomedia:kurento-tree-client-android:1.0.4'
+    compile 'fi.vtt.nubomedia:kurento-tree-client-android:(version-code)'
+    
+Where ``(version-code)`` is the latest version of the library. The version history can be found in  https://mvnrepository.com/artifact/fi.vtt.nubomedia/kurento-tree-client-android
 
 ``KurentoTreeAPI`` is used as follows. First import clauses
 
 .. code:: java
-
 
 	import fi.vtt.nubomedia.kurentotreeclientandroid.KurentoTreeAPI;
 	import fi.vtt.nubomedia.kurentotreeclientandroid.TreeListener;
@@ -42,7 +43,6 @@ The callback functions are described in the javadoc. Next, implement ``KurentoTr
 	
 .. code:: java
 	
-	
 	public class MyClass implements TreeListener {
 	
 		private LooperExecutor executor;
@@ -57,12 +57,68 @@ The callback functions are described in the javadoc. Next, implement ``KurentoTr
 		}
 	}
 	
-Your ``KurentoTreeAPI`` has been now created. Please refer to the Java documentation to learn more about the available API functions.
+Your ``KurentoTreeAPI`` has been now created. To connect to the server, simple execute the following command:
+
+.. code:: java
+
+	kurentoTreeAPI.connectWebSocket();
+    
+After the connection has been established, you need to decide if the client is going to be master (the one which broadcasts the media) or one of viewers (which receives the media). As a master client, you will need to create a tree on the server by invoking
+
+.. code:: java
+
+    int createTreeRequestId = 123;
+    String treeId = "MyTree";
+    kurentoTreeAPI.sendCreateTree(treeId, createTreeRequestId);
+
+Where ``treeId`` is a unique identifier for the tree object. ``createTreeRequestId`` is simply an id for tracking the responses to this request. On method ``onTreeResponse`` you may receive the response and for example create a media connection to the server by using ``nbmWebRTCPeer``:
+    
+.. code:: java
+
+    if (Integer.valueOf(response.getId()) == createTreeRequestId) {
+        nbmWebRTCPeer.generateOffer("myoffer", true);
+    }
+
+For more information on how to handle p2p media connectivity, please refer to 
+https://readthedocs.org/projects/doc-webrtcpeer-android/
+
+Now you have a master client created which has an active media connection to a tree. To disconnect from tree and destroy it, invoke the following:
+
+.. code:: java
+
+    int treeDisconnectId = 124;
+    int treeBurnId = 124;
+    kurentoTreeAPI.sendRemoveTreeSource(treeId, treeDisconnectId);
+    kurentoTreeAPI.sendRemoveTree(treeId, treeBurnId);
+
+Creating a viewer client is a somewhat similar process. A viewer does not create a tree object but instead joins one. Start by creating an offer for receiving media
+
+.. code:: java
+
+    nbmWebRTCPeer.generateOffer("myoffer", false);
+    
+This time the second parameter, ``includeLocalMedia``, should be set to ``false``. Once you have the local offer generated, catch it in the ``onLocalSdpOfferGenerated`` and send ``sendAddTreeSink`` request:
+
+.. code:: java
+
+    public void onLocalSdpOfferGenerated(final SessionDescription sessionDescription, NBMPeerConnection nbmPeerConnection) {
+        addSinkRequestId = 123;
+        treeId = "MyTree";
+        kurentoTreeAPI.sendAddTreeSink(treeId, sessionDescription.description, addSinkRequestId);
+    }
+
+This tutorial only comprises the use of tree API. In order to have a complete mobile p2p application, all components ``nbmWebRTCPeer``, ``KurentoTreeAPI`` and ``KurentoRoomAPI`` should be used in conjunction. You may find documentation on 
+
+https://readthedocs.org/projects/doc-webrtcpeer-android/
+
+http://doc-kurento-room-client-android.readthedocs.io/en/latest/
+    
+
 
 Source code is available at
 https://github.com/nubomedia-vtt/kurento-tree-client-android
 
-The Javadoc is included in the source code and can be downloaded from the link below:
+Please refer to the Java documentation to learn more about the available API functions. The Javadoc is included in the source code and can be downloaded from the link below:
 https://github.com/nubomedia-vtt/kurento-tree-client-android/tree/master/javadoc 
 
 Support is provided through the Nubomedia VTT Public Mailing List available at
